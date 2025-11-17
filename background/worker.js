@@ -28,6 +28,12 @@ async function clearTag(tabId) {
   }
 }
 
+chrome.runtime.onStartup.addListener(() => {
+  syncExistingPinnedTabs().catch(e =>
+    console.error("syncExistingPinnedTabs onStartup failed", e)
+  );
+});
+
 // Init storage and context menus
 chrome.runtime.onInstalled.addListener(() => {
   chrome.storage.sync.get(["storedTabs", "autoTrackPinned"], (data) => {
@@ -62,6 +68,10 @@ chrome.runtime.onInstalled.addListener(() => {
     title: "Reset this tab to original URL",
     contexts: ["page"]
   });
+
+  syncExistingPinnedTabs().catch(e =>
+    console.error("syncExistingPinnedTabs onInstalled failed", e)
+  );
 });
 
 
@@ -70,36 +80,74 @@ chrome.action.onClicked.addListener(() => {
   applyStoredPinnedToCurrentWindow();
 });
 
-// New normal windows: create stored pinned tabs in order
 chrome.windows.onCreated.addListener((window) => {
   if (window.type !== "normal") return;
 
   (async () => {
-    const { storedTabs = {} } = await chrome.storage.sync.get("storedTabs");
-    const sortedUrls = Object.keys(storedTabs).sort(
-      (a, b) => storedTabs[a] - storedTabs[b]
-    );
+    const tabs = await chrome.tabs.query({ windowId: window.id });
 
-    let targetIndex = 0;
-    for (const url of sortedUrls) {
-      const isInternal = /^chrome(|-untrusted|-extension):\/\//i.test(url);
-      if (isInternal) {
-        continue;
+    // Only treat as fresh if it's a single newtab
+    if (
+      tabs.length !== 1 ||
+      (tabs[0].pendingUrl !== "chrome://newtab/" && tabs[0].url !== "chrome://newtab/")
+    ) {
+      await syncExistingPinnedTabs();
+    } else {
+      const { pinnedTabs = {} } = await chrome.storage.sync.get("pinnedTabs");
+      const sortedUrls = Object.keys(pinnedTabs).sort(
+        (a, b) => pinnedTabs[a] - pinnedTabs[b]
+      );
+
+      let targetIndex = 0;
+      for (const url of sortedUrls) {
+        const isInternal = /^chrome(|-untrusted|-extension):\/\//i.test(url);
+        if (isInternal) continue;
+
+        const tab = await chrome.tabs.create({
+          windowId: window.id,
+          url,
+          pinned: true,
+          active: false,
+          index: targetIndex
+        });
+
+        await tagTab(tab.id, url, true);
+        targetIndex++;
       }
-
-      const tab = await chrome.tabs.create({
-        windowId: window.id,
-        url,
-        pinned: true,
-        active: false,
-        index: targetIndex
-      });
-
-      await tagTab(tab.id, url, true);
-      targetIndex++;
     }
   })().catch((e) => console.error("windows.onCreated failed", e));
 });
+
+async function syncExistingPinnedTabs() {
+  const { pinnedTabs = {} } = await chrome.storage.sync.get("pinnedTabs");
+  const urlsSet = new Set(Object.keys(pinnedTabs));
+  if (urlsSet.size === 0) return;
+
+  // Get the currently focused normal window
+  let win;
+  try {
+    win = await chrome.windows.getLastFocused({ windowTypes: ["normal"] });
+    console.log("ARC RePin: syncing existing pinned tabs in window", win.id);
+  } catch (e) {
+    console.warn("ARC RePin: no focused normal window", e);
+    return;
+  }
+
+  // Only pinned tabs from that window
+  const tabs = await chrome.tabs.query({
+    windowId: win.id,
+    pinned: true
+  });
+
+  for (const tab of tabs) {
+    if (urlsSet.has(tab.url)) {
+      // Mark as managed; no badge to avoid spam on startup
+      console.log("ARC RePin: syncing existing pinned tab", tab.url);
+      await tagTab(tab.id, tab.url, false);
+    }
+  }
+}
+
 
 // Apply stored pinned set to current window
 async function applyStoredPinnedToCurrentWindow() {
