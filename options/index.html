@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>ARC RePin — Auto-RePin Chrome - Settings</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <!-- Local Inter font -->
+  <style>
+    @font-face {
+      font-family: 'Inter';
+      src: url('./Inter-VariableFont_opsz,wght.ttf') format('truetype');
+      font-weight: 100 900;
+      font-style: normal;
+    }
+    @font-face {
+      font-family: 'Inter';
+      src: url('./Inter-Italic-VariableFont_opsz,wght.ttf') format('truetype');
+      font-weight: 100 900;
+      font-style: italic;
+    }
+
+    body {
+      font-family: Inter, sans-serif;
+    }
+
+    .truncate-2 {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      max-width: 400px;
+    }
+  </style>
+  <script src="./tailwind-3.4.0.min.js"></script>
+</head>
+
+<body class="bg-gray-100 text-gray-900 min-h-screen pt-10">
+
+  <main class="max-w-3xl mx-auto px-4 space-y-8">
+
+    <!-- HEADER -->
+    <section class="bg-white shadow rounded-lg p-6">
+      <header class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+        <div>
+          <h1 class="text-2xl font-semibold">ARC RePin — Auto-RePin Chrome</h1>
+          <p class="text-sm text-gray-500">Manage your persistent pinned tabs.</p>
+        </div>
+
+        <button id="saveButton"
+          class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded transition text-sm font-medium">
+          Save Settings
+        </button>
+      </header>
+
+      <div class="mt-6 flex items-start gap-3">
+        <input id="autoTrackPinned" type="checkbox"
+          class="h-4 w-4 mt-1 text-blue-600 border-gray-300 rounded">
+        <label for="autoTrackPinned" class="flex flex-col cursor-pointer">
+          <span class="font-medium text-sm">Track newly pinned tabs automatically</span>
+          <span class="text-xs text-gray-500">Whenever you pin a tab, it will be added to this list.</span>
+        </label>
+      </div>
+    </section>
+
+    <!-- TABLE -->
+    <section class="bg-white shadow rounded-lg p-6">
+      <h2 class="text-lg font-semibold mb-4">Pinned Sites</h2>
+
+      <div class="overflow-x-auto">
+        <table id="pinnedList" class="w-full text-sm">
+          <!-- dynamically filled by loadTabs() -->
+        </table>
+      </div>
+    </section>
+
+    <footer class="text-center text-xs text-gray-500 pb-6">
+      These sites define the pinned layout for new windows and resets.
+    </footer>
+
+  </main>
+
+  <script src="main.js"></script>
+</body>
+</html>
